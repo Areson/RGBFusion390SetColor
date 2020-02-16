@@ -1,28 +1,44 @@
 ﻿using System;
 using System.IO;
 using System.IO.Pipes;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 namespace RGBFusion390SetColor
 {
     public class ArgsPipeInterOp
     {
-        public void StartArgsPipeServer()
-        {
-            var s = new NamedPipeServerStream("RGBFusion390SetColor", PipeDirection.In);
-            Action<NamedPipeServerStream> a = GetArgsCallBack;
-            a.BeginInvoke(s, callback: ar => { }, @object: null);
+        private CancellationToken cancellationToken;
+
+        public ArgsPipeInterOp(CancellationToken cancellationToken)
+        {            
+            this.cancellationToken = cancellationToken;
         }
 
-        private static void GetArgsCallBack(NamedPipeServerStream pipe)
+        public void StartArgsPipeServer(int serverInstances)
         {
-            while (true)
+            var s = new NamedPipeServerStream("RGBFusion390SetColor", PipeDirection.In, serverInstances);
+            Action<NamedPipeServerStream> a = GetArgsCallBack;
+            a.BeginInvoke(s, callback: ar => { }, @object: this);
+        }
+
+        private void GetArgsCallBack(NamedPipeServerStream pipe)
+        {
+            while (!cancellationToken.IsCancellationRequested)
             {
-                pipe.WaitForConnection();
-                var sr = new StreamReader(pipe);
-                var args = sr.ReadToEnd().Split(' ');
-                Program.Run(args);
-                pipe.Disconnect();
+                pipe.WaitForConnectionAsync(cancellationToken).Wait();
+
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    using (var sr = new StreamReader(pipe, System.Text.Encoding.ASCII, false, 1024, true))
+                    {
+                        var args = sr.ReadToEnd().Split(' ');
+                        Task.Run(() => Program.Run(args));
+                    }
+
+                    pipe.Disconnect();
+                }
             }
             // ReSharper disable once FunctionNeverReturns
         }

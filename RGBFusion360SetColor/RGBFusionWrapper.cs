@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Media;
+using RGBFusion390SetColor.Animation;
 using SelLEDControl;
 
 namespace RGBFusion390SetColor
@@ -12,21 +13,32 @@ namespace RGBFusion390SetColor
     public class RgbFusion
     {
         private Comm_LED_Fun _ledFun;
-        private bool _areaChangeApplySuccess;
-        private bool _scanDone;
+        private bool _areaChangeApplySuccess;        
         private List<CommUI.Area_class> _allAreaInfo;
         private List<CommUI.Area_class> _allExtAreaInfo;
-        private List<LedCommand> _commands;
+        private Dictionary<int, CommUI.Area_class> _extAreaInfoLookup;
+        //private List<LedCommand> _commands;
         private Thread _newChangeThread;
         private readonly sbyte _changeOperationDelay = 60;
         private bool _initialized;
+        private AsyncQueue<LedCommand[]> _commands;
+        private CancellationToken cancellationToken;
+        private ManualResetEvent _initEvent;
+
+        private AnimationHandler _animationHandler;
+        private Thread _animationThread;
+
+        public RgbFusion(CancellationToken cancellationToken)
+        {
+            _commands = new AsyncQueue<LedCommand[]>(cancellationToken);
+            this.cancellationToken = cancellationToken;
+            _initEvent = new ManualResetEvent(false);
+        }
 
         public bool IsInitialized()
         {
             return _ledFun != null && _initialized;
         }
-
-        readonly ManualResetEvent _commandEvent = new ManualResetEvent(false);
 
         public void LoadProfile(int profileId)
         {
@@ -134,6 +146,15 @@ namespace RGBFusion390SetColor
         private void Fill_ExtArea_info()
         {
             _allExtAreaInfo = GetAllExtAreaInfo();
+            _extAreaInfoLookup = _allExtAreaInfo.ToDictionary(x => x.Area_index, x => x);
+        }
+
+        private void Assign_ExtArea(CommUI.Area_class area)
+        {
+            if (_extAreaInfoLookup.ContainsKey(area.Area_index))
+            {
+                area.Ext_Area_id = _extAreaInfoLookup[area.Area_index].Ext_Area_id;
+            }
         }
 
         private List<CommUI.Area_class> GetAllExtAreaInfo(int profileId = -1)
@@ -153,7 +174,7 @@ namespace RGBFusion390SetColor
                 return allExtAreaInfo;
             }
             Creative_Profile_Ext(str1, _ledFun.LEd_Layout.Ext_Led_Array, color, string.Concat("ExProfile ", profileId.ToString()));
-            allExtAreaInfo = ReImport_ExtInfo(CommUI.Inport_from_xml(str, null), CommUI.Inport_from_xml(str1,  null));
+            allExtAreaInfo = ReImport_ExtInfo(CommUI.Inport_from_xml(str, null), CommUI.Inport_from_xml(str1, null));
             File.Delete(str1);
             return allExtAreaInfo;
         }
@@ -192,39 +213,49 @@ namespace RGBFusion390SetColor
             _newChangeThread.SetApartmentState(ApartmentState.STA);
             _newChangeThread.Start();
             _newChangeThread.Join();
+            _animationThread.Join();
         }
 
-        public void ChangeColorForAreas(List<LedCommand> commands)
+        public void EnqueueCommands(LedCommand[] commands)
+        {
+            _commands.Enqueue(commands);
+        }
+
+        /*public void ChangeColorForAreas(List<LedCommand> commands)
         {
             _commands = commands;
             _commandEvent.Set();
             _commandEvent.Reset();
-        }
+        }*/
 
-        public void SetAllAreas(object obj)
+        public void SetAllAreas(LedCommand obj)
         {
             var patternCombItem = new CommUI.Pattern_Comb_Item
             {
-                Bg_Brush_Solid = { Color = (Color)obj },
+                Bg_Brush_Solid = { Color = obj.NewColor},
                 Sel_Item = { Style = null }
             };
 
             patternCombItem.Sel_Item.Background = patternCombItem.Bg_Brush_Solid;
             patternCombItem.Sel_Item.Content = string.Empty;
             patternCombItem.But_Args = CommUI.Get_Color_Sceenes_class_From_Brush(patternCombItem.Bg_Brush_Solid);
-            patternCombItem.But_Args[0].Scenes_type = 0;
-            patternCombItem.But_Args[1].Scenes_type = 0;
+            /*patternCombItem.But_Args[0].Scenes_type = 1;
+            patternCombItem.But_Args[1].Scenes_type = 1;
             patternCombItem.But_Args[0].TransitionsTeime = 10;
-            patternCombItem.But_Args[1].TransitionsTeime = 10;
-            patternCombItem.Bri = 9;
-            patternCombItem.Speed = 2;
-            patternCombItem.Type = 0;
+            patternCombItem.But_Args[1].TransitionsTeime = 10;*/
+            patternCombItem.Bri = obj.Bright;
+            patternCombItem.Speed = obj.Speed;
+            patternCombItem.Type = obj.NewMode;
 
             var allAreaInfo = _allAreaInfo.Select(areaInfo => new CommUI.Area_class(patternCombItem, areaInfo.Area_index, null)).ToList();
 
             var allExtAreaInfo = _allExtAreaInfo.Select(areaInfo => new CommUI.Area_class(patternCombItem, areaInfo.Area_index, null) { Ext_Area_id = areaInfo.Ext_Area_id }).ToList();
 
             allAreaInfo.AddRange(allExtAreaInfo);
+
+            // Disable all animations running
+            _animationHandler.Reset();       
+
             _ledFun.Set_Adv_mode(allAreaInfo, true);
             Thread.Sleep(_changeOperationDelay);
         }
@@ -241,63 +272,92 @@ namespace RGBFusion390SetColor
 
         public void SetAreas()
         {
-            while (_newChangeThread.IsAlive)
-            {
-                _commandEvent.WaitOne();
-                _commandEvent.Reset();
-
-                var areaInfo = new List<CommUI.Area_class>();
-
-                foreach (var command in _commands)
+            while (_newChangeThread.IsAlive && !cancellationToken.IsCancellationRequested)
+            {                
+                foreach (var commands in _commands.Messages)
                 {
-                    if (command.AreaId == -1)
+                    var areaInfo = new List<CommUI.Area_class>();
+
+                    foreach (var command in commands)
                     {
-                        SetAllAreas(command.NewColor);
-                        continue;
-                    }
-
-                    var patternCombItem = new CommUI.Pattern_Comb_Item
-                    {
-                        Bg_Brush_Solid = { Color = command.NewColor },
-                        Sel_Item = { Style = null }
-                    };
-                    patternCombItem.Sel_Item.Background = patternCombItem.Bg_Brush_Solid;
-                    patternCombItem.Sel_Item.Content = string.Empty;
-                    patternCombItem.But_Args = CommUI.Get_Color_Sceenes_class_From_Brush(patternCombItem.Bg_Brush_Solid);
-
-                    patternCombItem.Bri = command.Bright;
-                    patternCombItem.Speed = command.Speed;
-
-                    patternCombItem.Type = command.NewMode;
-                    var area = new CommUI.Area_class(patternCombItem, command.AreaId, null);
-
-                    foreach (var extAreaInfo in _allExtAreaInfo.Where(extAreaInfo => extAreaInfo.Area_index == area.Area_index))
-                    {
-                        area.Ext_Area_id = extAreaInfo.Ext_Area_id;
-                    }
-
-                    areaInfo.Add(area);
-                }
-
-                if (_commands.Count > 0)
-                {
-                    //_ledFun.Set_Sync(false);
-                    _ledFun.Set_Adv_mode(areaInfo, true);
-                    //Not required anymore
-                    /*
-                    var requireNonDirectModeAreaInfo = areaInfo.FindAll(i => i.Pattern_info.Type > 0);
-                    if (requireNonDirectModeAreaInfo.Count > 0)
-                    {
-
-                        _ledFun.Set_Adv_mode(requireNonDirectModeAreaInfo);
-                        do
+                        // Parse special areas
+                        // -1: All areas (all LEDs)
+                        // -2: Music Mode
+                        // -3: Profile
+                        // -4: Animation Settings
+                        // -5: Play Animations
+                        // -6: Pause Animations
+                        // -7: Stop Animations
+                        if (command.AreaId == -1)
                         {
-                            Thread.Sleep( 10);
+                            SetAllAreas(command);
+                            continue;
                         }
-                        while (!_areaChangeApplySuccess);
+                        else if (command.AreaId == -2)
+                        {
+                            if (command.NewMode == 1)
+                            {
+                                StartMusicMode();
+                            }
+                            else
+                            {
+                                StopMusicMode();
+                            }
+
+                            continue;
+                        }
+                        else if (command.AreaId == -3)
+                        {
+                            LoadProfile(command.NewMode);
+                            continue;
+                        }
+                        else if (command.AreaId == -4)
+                        {
+                            if (command.Animation != null)
+                            {
+                                _animationHandler.AddAnimation(command.Animation);
+                            }
+
+                            continue;
+                        }
+                        else if (command.AreaId == -5)
+                        {
+                            _animationHandler.Play();
+                            continue;
+                        }
+                        else if (command.AreaId == -6)
+                        {
+                            _animationHandler.Pause();
+                            continue;
+                        }
+                        else if (command.AreaId == -7)
+                        {
+                            _animationHandler.Stop();
+                            continue;
+                        }
+                        
+                        var area = command.BuildArea();
+
+                        // Remove any animations that may be running for this area
+                        _animationHandler.RemoveAnimation((sbyte)area.Area_index);
+
+                        areaInfo.Add(area);
                     }
-                    */
+
+                    ApplyAreas(areaInfo);
                 }
+            }
+        }
+
+        public void ApplyAreas(List<CommUI.Area_class> areas)
+        {
+            if (areas.Any())
+            {
+                // Assign any ExtArea ids as needed
+                areas.ForEach(a => Assign_ExtArea(a));
+
+                // Apply the lighting
+                _ledFun.Set_Adv_mode(areas, true);                
             }
         }
 
@@ -324,7 +384,10 @@ namespace RGBFusion390SetColor
             return areasReport;
         }
 
-        private void CallBackLedFunApplyScanPeripheralSuccess() => _scanDone = true;
+        private void CallBackLedFunApplyScanPeripheralSuccess()
+        {             
+            _initEvent.Set();
+        }
         private void CallBackLedFunApplyEzSuccess() => _areaChangeApplySuccess = true;
         private void CallBackLedFunApplyAdvSuccess() => _areaChangeApplySuccess = true;
 
@@ -339,15 +402,21 @@ namespace RGBFusion390SetColor
             _ledFun.ApplyAdv_Success += CallBackLedFunApplyAdvSuccess;
 
             _ledFun.Ini_LED_Fun();
+            _ledFun.Ini_DDR_Info();
 
             _ledFun = CommUI.Get_Easy_Pattern_color_Key(_ledFun);
 
             _ledFun.LEd_Layout.Set_Support_Flag();
-            do
+
+            switch(WaitHandle.WaitAny(new WaitHandle[] { cancellationToken.WaitHandle, _initEvent }))
             {
-                Thread.Sleep(10);
-            }
-            while (!_scanDone);
+                // Shutdown was called during init, so stop
+                case 0:
+                    return;
+
+                default:
+                    break;
+            }            
 
             _ledFun.Current_Mode = 0; // 1= Advanced 0 = Simple or Ez
 
@@ -358,6 +427,12 @@ namespace RGBFusion390SetColor
             StopMusicMode();
             FillAllAreaInfo();
             Fill_ExtArea_info();
+
+            // Setup the animation handler
+            _animationHandler = new AnimationHandler(cancellationToken, ApplyAreas);
+            _animationThread = new Thread(_animationHandler.AnimationLoop);
+            _animationThread.SetApartmentState(ApartmentState.STA);            
+            _animationThread.Start();
         }
     }
 }
