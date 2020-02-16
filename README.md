@@ -1,5 +1,7 @@
 # RGBFusion390SetColor
 
+[English](README_EN.md)
+
 ## Descripción
 
 RGBFusion390SetColor es una herramienta muy simple que sirve para cambiar el color, modo, velocidad y brillo de dispositivos compatibles con [Gigabyte's RGB Fusion]
