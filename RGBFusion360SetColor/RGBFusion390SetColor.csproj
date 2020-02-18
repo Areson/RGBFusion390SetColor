@@ -61,6 +61,10 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Gigabyte.ULightingEffects, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\GIGABYTE\RGBFusion\Gigabyte.ULightingEffects.dll</HintPath>
+    </Reference>
     <Reference Include="LedLib2, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Program Files (x86)\GIGABYTE\RGBFusion\LedLib2.dll</HintPath>

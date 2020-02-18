@@ -65,7 +65,7 @@ Exit the background service
 --exit
 ```
 
-For information on commands for animations, see the [Animation](Documentation/ANIMATION.md) documentation.
+For information on commands for animations, see the [Animation](ANIMATION.md) documentation.
 
 ** Mode identifiers: **
 
@@ -99,4 +99,4 @@ It is important to note that not all areas are compatible with all modes. You wi
 
 ## Animations
 
-See the [Animation](Documentation/ANIMATION.md) documentation.
+See the [Animation](ANIMATION.md) documentation.

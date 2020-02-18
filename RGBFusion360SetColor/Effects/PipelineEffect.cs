@@ -99,7 +99,7 @@ namespace RGBFusion390SetColor.Effects
                 }
             }
 
-            currentEffect.Step(clock, currentState, pipelineStartingState, previousState, pipelineTimeInEffect, maxEffectTime);
+            currentEffect.Step(clock, currentState, pipelineStartingState, previousState, pipelineTimeInEffect, maxEffectTime - 1);
             pipelineTimeInEffect++;
 
             return currentState;

@@ -100,7 +100,7 @@ namespace RGBFusion390SetColor.Animations
                     }
 
                     var timedEffect = timedEffects[effectIndex];
-                    timedEffect.Effect.Step(clock, currentState, startingState, previousState, timeInEffect, timedEffects[effectIndex].Length);
+                    timedEffect.Effect.Step(clock, currentState, startingState, previousState, timeInEffect, timedEffects[effectIndex].Length - 1);
                     TimeInStep++;
                     timeInEffect++;
 
