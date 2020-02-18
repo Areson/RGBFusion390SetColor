@@ -2,14 +2,16 @@
 
 ## Description
 
-RGBFusion390SetColor is a very simple tool used to change the color, mode, speed and brightness of devices compatible with [Gigabyte's RGB Fusion] To operate, RGBFusion390SetColorload and initialize the internal components of [Gigabyte's RGB Fusion] to use them as a HAL due to that [Gigabyte's RGB Fusion] is capable of handling hardware of different types and brands. Initialization tasks may take several seconds. To prevent this delay from occurring every time a change in lighting is applied, RGBFusion390SetColorstart its internal components and then wait for commands sent by command line or by a NamedPipe.
+RGBFusion390SetColor is a very simple tool used to change the color, mode, speed and brightness of devices compatible with [Gigabyte's RGB Fusion]. 
+To operate, RGBFusion390SetColorload and initialize the internal components of [Gigabyte's RGB Fusion] to use them as a HAL due to that [Gigabyte's RGB Fusion] is capable of handling hardware of different types and brands. 
+Initialization tasks may take several seconds. To prevent this delay from occurring every time a change in lighting is applied, RGBFusion390SetColor starts its internal components and then waits for commands sent by the command line or by a NamedPipe.
 
 ## Modes of use
 
 This utility can be used in two different ways:
 
 1. Command line
-2. Sending messages to a NamedPipe. This mode was developed to be used with applications such as Aurora Projectothers that require sending commands quickly (up to 15 commands per second).
+2. Sending messages to a NamedPipe. This mode was developed to be used with applications such as Aurora Project and others that require sending commands quickly (up to 15 commands per second).
 
 ## Characteristics
 
@@ -18,11 +20,11 @@ This utility can be used in two different ways:
 
 ## Dependencies
 
-This application depends on LedLib2.dlland SelLEDControl.dll, both part of the main [Gigabyte's RGB Fusion] application. Both are necessary for compilation.
+This application depends on LedLib2.dll and SelLEDControl.dll, both part of the main [Gigabyte's RGB Fusion] application. Both are necessary for compilation.
 
 ## Installation
 
-This application does not need to be installed. You should only copy RGBFusion390SetColor.exeto the [Gigabyte's RGB Fusion Application] folder. Typically C:\Program Files (x86)\GIGABYTE\RGBFusion.
+This application does not need to be installed. You should only copy RGBFusion390SetColor.exe to the [Gigabyte's RGB Fusion Application] folder. Typically C:\Program Files (x86)\GIGABYTE\RGBFusion.
 
 ## Commands
 
@@ -31,6 +33,7 @@ Obtain the list of area identifiers.
 ```
 --areas
 ```
+
 Set areas
 
 ```
@@ -39,7 +42,7 @@ Set areas
 
 Where:
 
-- <AREA_ID>: Area number. Area identifiers can be obtained with the command --areasor used -1to set all areas. If area -1 is used, the parameter `<MODE_ID>` will be ignored.
+- <AREA_ID>: Area number. Area identifiers can be obtained with the command --areasor or use -1 to set all areas. If area -1 is used, the parameter `<MODE_ID>` will be ignored.
 - <MODE_ID>: Numerical value that sets the mode of operation of the area. See Mode Identifiers
 - <R_VALUE>: Value between 0 and 255 representing the color red.
 - <G_VALUE>: Value between 0 and 255 representing the green color.
@@ -47,13 +50,22 @@ Where:
 - <SPEED_VALUE>: OPTIONAL (Default is 5) Value between 0 and 9 representing the speed of the animation if an animated mode is used.
 - <BRIGHT_VALUE>: OPTIONAL (Default is 9) Value between 0 and 9 representing the brightness level of the area.
 
+Load an existing profile
+
 ```
---loadprofile: <PROFILE_ID>
+--loadprofile:<PROFILE_ID>
 ```
 
 Where:
+- <PROFILE_ID>: The number of a profile from [Gigabyte's RGB Fusion] application
 
-- <PROFILE_ID>: Profile number of [Gigabyte's RGB Fusion] to be loaded.
+Exit the background service
+
+```
+--exit
+```
+
+For information on commands for animations, see the [Animation](Documentation/ANIMATION.md) documentation.
 
 ** Mode identifiers: **
 
@@ -68,6 +80,23 @@ Where:
 - off = 8;
 - auto = 9;
 - other = 10;
-- DFlash = 11;
+
+Values above 10 are digitial effects. These can be applied to some elements on the motherboard despite the RGB Fusion app not allowing it. 
+Some elements on the mother board will display the incorrect color based on the passed RGB value when using digital effects.
+
+- DFlash = 11; (single color)
+- DStart = 12; (single color)
+- DMeteor = 13; (single color)
+- DShaking = 14; (single color)
+- DExplode = 15; (?)
+- DMeteor2 = 17; (single color)
+- DColorStack = 18; (rainbow)
+- DColorRain = 19; (rainbow)
+- DColorStack = 20; (single color)
+- DColorRain = 21; (single color)
 
 It is important to note that not all areas are compatible with all modes. You will have to try and see which modes work for each area.
+
+## Animations
+
+See the [Animation](Documentation/ANIMATION.md) documentation.

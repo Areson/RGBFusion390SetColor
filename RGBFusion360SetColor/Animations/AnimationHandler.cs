@@ -7,7 +7,7 @@ using System.Threading;
 using System.Collections.Concurrent;
 using SelLEDControl;
 
-namespace RGBFusion390SetColor.Animation
+namespace RGBFusion390SetColor.Animations
 {
     public class AnimationHandler
     {
@@ -30,13 +30,12 @@ namespace RGBFusion390SetColor.Animation
             this.handler = handler;
             this.canPlay = new ManualResetEvent(false);
         }
-
-        public void AddAnimationPhase(sbyte areaId, AnimationPhase phase)
+        public void AddAnimationStep(sbyte areaId, AnimationStep step)
         {
             lock (LOCK_OBJECT)
             {
                 var animation = animations.GetOrAdd(areaId, (a) => new Animation(a));
-                animation.AddPhase(phase);
+                animation.AddStep(step);
 
                 if (!isPaused)
                 {
@@ -53,9 +52,9 @@ namespace RGBFusion390SetColor.Animation
                 {
                     var existing = animations.GetOrAdd(animation.AreaId, (a) => new Animation(a));
 
-                    foreach (var phase in animation.Phases)
+                    foreach (var step in animation.Steps)
                     {
-                        existing.AddPhase(phase);
+                        existing.AddStep(step);
                     }
 
                     if (!isPaused)

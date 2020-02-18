@@ -23,6 +23,8 @@ namespace RGBFusion390SetColor
             a.BeginInvoke(s, callback: ar => { }, @object: this);
         }
 
+        private readonly string[] stringSplit = new string[] { "{argsplit}" };
+
         private void GetArgsCallBack(NamedPipeServerStream pipe)
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -33,7 +35,7 @@ namespace RGBFusion390SetColor
                 {
                     using (var sr = new StreamReader(pipe, System.Text.Encoding.ASCII, false, 1024, true))
                     {
-                        var args = sr.ReadToEnd().Split(' ');
+                        var args = sr.ReadToEnd().Split(stringSplit, StringSplitOptions.None);
                         Task.Run(() => Program.Run(args));
                     }
 
@@ -49,7 +51,7 @@ namespace RGBFusion390SetColor
             using (var stream = new StreamWriter(pipe))
             {
                 pipe.Connect(timeout: 1000);
-                stream.Write(string.Join(" ", args));
+                stream.Write(string.Join(stringSplit[0], args));
             }
         }
     }

@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Media;
-using RGBFusion390SetColor.Animation;
+using RGBFusion390SetColor.Animations;
 using SelLEDControl;
 
 namespace RGBFusion390SetColor
@@ -243,7 +243,7 @@ namespace RGBFusion390SetColor
             patternCombItem.But_Args[1].Scenes_type = 1;
             patternCombItem.But_Args[0].TransitionsTeime = 10;
             patternCombItem.But_Args[1].TransitionsTeime = 10;*/
-            patternCombItem.Bri = obj.Bright;
+            patternCombItem.Bri = obj.GetTransfromedBrightness();
             patternCombItem.Speed = obj.Speed;
             patternCombItem.Type = obj.NewMode;
 
